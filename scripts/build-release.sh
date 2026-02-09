@@ -3,17 +3,14 @@
 # build-release.sh
 #
 # Builds all release artifacts for wdk-swift-core distribution:
-#   - 17 addon xcframework zips (for SPM binary targets)
 #   - prebuilds.zip (BareKit.xcframework + wdk-worklet.mobile.bundle)
-#   - binary-targets.swift snippet with URLs and SHA256 checksums
+#   - addons.zip    (17 native addon xcframeworks)
 #
 # Usage:
-#   ./scripts/build-release.sh <github-release-base-url> [--barekit <path>]
+#   ./scripts/build-release.sh [--barekit <path>]
 #
 # Example:
-#   ./scripts/build-release.sh \
-#     https://github.com/ArcadeLabsInc/pear-wrk-wdk-jsonrpc/releases/download/v1.0.0 \
-#     --barekit ../wdk-starter-swift/frameworks/BareKit.xcframework
+#   ./scripts/build-release.sh --barekit ../wdk-starter-swift/frameworks/BareKit.xcframework
 #
 # Prerequisites:
 #   - Node.js and npm installed
@@ -27,7 +24,6 @@ set -euo pipefail
 # Parse arguments
 # ---------------------------------------------------------------------------
 
-RELEASE_URL=""
 BAREKIT_PATH=""
 
 while [[ $# -gt 0 ]]; do
@@ -37,37 +33,19 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --help|-h)
-      echo "Usage: $0 <github-release-base-url> [--barekit <path-to-BareKit.xcframework>]"
-      echo ""
-      echo "Arguments:"
-      echo "  github-release-base-url   Base URL for GitHub release assets"
-      echo "                            e.g. https://github.com/org/repo/releases/download/v1.0.0"
+      echo "Usage: $0 [--barekit <path-to-BareKit.xcframework>]"
       echo ""
       echo "Options:"
-      echo "  --barekit <path>          Path to BareKit.xcframework (required for prebuilds.zip)"
-      echo "  --help, -h                Show this help message"
+      echo "  --barekit <path>   Path to BareKit.xcframework (required for prebuilds.zip)"
+      echo "  --help, -h         Show this help message"
       exit 0
       ;;
     *)
-      if [ -z "$RELEASE_URL" ]; then
-        RELEASE_URL="$1"
-      else
-        echo "Error: Unexpected argument '$1'"
-        exit 1
-      fi
-      shift
+      echo "Error: Unexpected argument '$1'"
+      exit 1
       ;;
   esac
 done
-
-if [ -z "$RELEASE_URL" ]; then
-  echo "Error: Missing required argument <github-release-base-url>"
-  echo "Usage: $0 <github-release-base-url> [--barekit <path>]"
-  exit 1
-fi
-
-# Remove trailing slash from URL
-RELEASE_URL="${RELEASE_URL%/}"
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -107,13 +85,13 @@ echo "============================================"
 echo ""
 
 rm -rf "$RELEASE_DIR"
-mkdir -p "$RELEASE_DIR/addons"
+mkdir -p "$RELEASE_DIR"
 
 # ---------------------------------------------------------------------------
 # Step 1: Build addons (bare-link)
 # ---------------------------------------------------------------------------
 
-echo "[1/6] Building addon xcframeworks..."
+echo "[1/4] Building addon xcframeworks..."
 echo "      Running: npm run build:addons"
 echo ""
 npm run build:addons
@@ -123,7 +101,7 @@ echo ""
 # Step 2: Build bundle (bare-pack)
 # ---------------------------------------------------------------------------
 
-echo "[2/6] Building worklet bundle..."
+echo "[2/4] Building worklet bundle..."
 echo "      Running: npm run build:bundle"
 echo ""
 npm run build:bundle
@@ -140,11 +118,14 @@ echo "      Bundle created: $BUNDLE_PATH"
 echo ""
 
 # ---------------------------------------------------------------------------
-# Step 3: Zip each addon xcframework
+# Step 3: Build addons.zip (all 17 xcframeworks in one zip)
 # ---------------------------------------------------------------------------
 
-echo "[3/6] Zipping addon xcframeworks..."
+echo "[3/4] Building addons.zip..."
 echo ""
+
+ADDONS_STAGING="${RELEASE_DIR}/addons-staging"
+mkdir -p "$ADDONS_STAGING"
 
 MISSING_ADDONS=()
 
@@ -159,12 +140,8 @@ for addon in "${ADDONS[@]}"; do
   fi
 
   XCFW_BASENAME=$(basename "$XCFW")
-  ZIP_NAME="${addon}.xcframework.zip"
-
-  echo "      Zipping ${XCFW_BASENAME} -> ${ZIP_NAME}"
-
-  # Zip from the parent directory so the xcframework is at the root of the zip
-  (cd "$ADDONS_OUT_DIR" && zip -r -q "../${RELEASE_DIR}/addons/${ZIP_NAME}" "$XCFW_BASENAME")
+  echo "      Adding ${XCFW_BASENAME}"
+  cp -R "$XCFW" "$ADDONS_STAGING/$XCFW_BASENAME"
 done
 
 echo ""
@@ -179,14 +156,32 @@ if [ ${#MISSING_ADDONS[@]} -gt 0 ]; then
   exit 1
 fi
 
-echo "      All 17 addon xcframeworks zipped."
+# Also generate addons.yml for XcodeGen
+echo "      Generating addons.yml..."
+cat > "$ADDONS_STAGING/addons.yml" << 'HEADER'
+targets:
+  wdk-starter-swift:
+    dependencies:
+HEADER
+
+for addon in "${ADDONS[@]}"; do
+  XCFW=$(find "$ADDONS_OUT_DIR" -maxdepth 1 -name "${addon}.*.xcframework" -type d 2>/dev/null | head -1)
+  XCFW_BASENAME=$(basename "$XCFW")
+  echo "      - framework: ${XCFW_BASENAME}" >> "$ADDONS_STAGING/addons.yml"
+done
+
+# Create the zip
+(cd "$ADDONS_STAGING" && zip -r -q "../addons.zip" .)
+rm -rf "$ADDONS_STAGING"
+
+echo "      Created: ${RELEASE_DIR}/addons.zip (17 xcframeworks + addons.yml)"
 echo ""
 
 # ---------------------------------------------------------------------------
 # Step 4: Build prebuilds.zip
 # ---------------------------------------------------------------------------
 
-echo "[4/6] Building prebuilds.zip..."
+echo "[4/4] Building prebuilds.zip..."
 
 PREBUILDS_DIR="${RELEASE_DIR}/prebuilds-staging"
 mkdir -p "$PREBUILDS_DIR"
@@ -216,102 +211,32 @@ echo "      Created: ${RELEASE_DIR}/prebuilds.zip"
 echo ""
 
 # ---------------------------------------------------------------------------
-# Step 5: Compute SHA256 checksums for addon zips
+# Done
 # ---------------------------------------------------------------------------
 
-echo "[5/6] Computing SHA256 checksums..."
-echo ""
-
-# Create the binary-targets.swift snippet
-SNIPPET_FILE="${RELEASE_DIR}/binary-targets.swift"
-cat > "$SNIPPET_FILE" << 'HEADER'
-// =============================================================================
-// Auto-generated by scripts/build-release.sh
-// Paste these into Package.swift targets array
-// =============================================================================
-
-// Binary targets for WDK native addons
-HEADER
-
-for addon in "${ADDONS[@]}"; do
-  ZIP_PATH="${RELEASE_DIR}/addons/${addon}.xcframework.zip"
-
-  if [ ! -f "$ZIP_PATH" ]; then
-    echo "      Error: ${ZIP_PATH} not found"
-    exit 1
-  fi
-
-  CHECKSUM=$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')
-  URL="${RELEASE_URL}/${addon}.xcframework.zip"
-
-  # Convert addon name to valid Swift identifier (hyphens -> underscores)
-  TARGET_NAME=$(echo "$addon" | sed 's/-/_/g')
-
-  echo "      ${addon}: ${CHECKSUM:0:16}..."
-
-  cat >> "$SNIPPET_FILE" << EOF
-.binaryTarget(
-    name: "${TARGET_NAME}",
-    url: "${URL}",
-    checksum: "${CHECKSUM}"
-),
-EOF
-done
-
-echo ""
-
-# ---------------------------------------------------------------------------
-# Step 6: Generate dependency list for Package.swift
-# ---------------------------------------------------------------------------
-
-echo "[6/6] Generating Package.swift dependency list..."
-
-cat >> "$SNIPPET_FILE" << 'DEPS_HEADER'
-
-// =============================================================================
-// Add these to the WdkSwiftCore target dependencies array
-// =============================================================================
-
-// dependencies: [
-//     .product(name: "BareKit", package: "bare-kit-swift"),
-DEPS_HEADER
-
-for addon in "${ADDONS[@]}"; do
-  TARGET_NAME=$(echo "$addon" | sed 's/-/_/g')
-  echo "//     \"${TARGET_NAME}\"," >> "$SNIPPET_FILE"
-done
-
-echo "// ]" >> "$SNIPPET_FILE"
-
-echo ""
 echo "============================================"
 echo "  Build complete!"
 echo "============================================"
 echo ""
 echo "Artifacts:"
-echo "  ${RELEASE_DIR}/prebuilds.zip"
-echo "  ${RELEASE_DIR}/addons/*.xcframework.zip  (17 files)"
-echo "  ${RELEASE_DIR}/binary-targets.swift"
+echo "  ${RELEASE_DIR}/prebuilds.zip   (BareKit.xcframework + wdk-worklet.mobile.bundle)"
+echo "  ${RELEASE_DIR}/addons.zip      (17 addon xcframeworks + addons.yml)"
 echo ""
 echo "Next steps:"
 echo ""
-echo "  1. Create a GitHub release and upload all artifacts:"
+echo "  1. Create a GitHub release and upload artifacts:"
 echo ""
 echo "     git tag v<VERSION>"
 echo "     git push origin v<VERSION>"
-echo ""
 echo "     gh release create v<VERSION> \\"
 echo "       ${RELEASE_DIR}/prebuilds.zip \\"
-
-for addon in "${ADDONS[@]}"; do
-  echo "       ${RELEASE_DIR}/addons/${addon}.xcframework.zip \\"
-done
-
+echo "       ${RELEASE_DIR}/addons.zip \\"
 echo "       --title \"v<VERSION>\" \\"
 echo "       --notes \"Release notes here\""
 echo ""
-echo "  2. Copy the contents of ${RELEASE_DIR}/binary-targets.swift"
-echo "     into wdk-swift-core/Package.swift"
-echo ""
-echo "  3. Tag and push wdk-swift-core"
+echo "  2. Consumer downloads prebuilds.zip + addons.zip from the release"
+echo "     - Unzip prebuilds.zip: place BareKit.xcframework in frameworks/"
+echo "       and wdk-worklet.mobile.bundle in project root"
+echo "     - Unzip addons.zip into addons/ directory"
+echo "     - Run: xcodegen generate"
 echo ""
