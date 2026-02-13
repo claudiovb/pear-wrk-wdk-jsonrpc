@@ -9,6 +9,7 @@ yarn.lock
 generated/
 ios-addons/
 mac-addons/
+android-addons/
 
 # Release artifacts (built by scripts/build-release.sh)
 release/

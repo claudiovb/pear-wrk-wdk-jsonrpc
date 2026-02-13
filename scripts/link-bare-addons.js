@@ -9,8 +9,8 @@ const platformArg = args.find(arg => arg.startsWith('--platform='))
 const platform = platformArg ? platformArg.split('=')[1] : 'ios'
 
 // Validate platform
-if (!['ios', 'macos'].includes(platform)) {
-  console.error('❌ Invalid platform. Use --platform=ios or --platform=macos')
+if (!['ios', 'macos', 'android'].includes(platform)) {
+  console.error('❌ Invalid platform. Use --platform=ios, --platform=macos, or --platform=android')
   process.exit(1)
 }
 
@@ -45,6 +45,11 @@ const platformConfig = {
     hosts: ['darwin-arm64'],
     outDir: 'mac-addons',
     displayName: 'macOS'
+  },
+  android: {
+    hosts: ['android-arm64', 'android-arm', 'android-ia32', 'android-x64'],
+    outDir: 'android-addons',
+    displayName: 'Android'
   }
 }
 

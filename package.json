@@ -10,7 +10,10 @@
     "build:addons:macos": "node scripts/link-bare-addons.js --platform=macos",
     "build:all": "npm run build:addons && npm run build:bundle",
     "build:all:macos": "npm run build:addons:macos && npm run build:bundle:macos",
-    "clean": "rm -rf generated ios-addons mac-addons",
+    "build:bundle:android": "bare-pack --preset android --linked --imports ./pack.imports.json --out generated/wdk-worklet.android.bundle src/wdk-worklet.js",
+    "build:addons:android": "node scripts/link-bare-addons.js --platform=android",
+    "build:all:android": "npm run build:addons:android && npm run build:bundle:android",
+    "clean": "rm -rf generated ios-addons mac-addons android-addons",
     "test:import": "bare test/test-wdk-import.js",
     "test:handlers": "bare test/test-handlers.js",
     "test": "npm run test:import && npm run test:handlers"
