@@ -1,10 +1,31 @@
 console.log('wdk-worklet.js - JSON-RPC only version')
 
+// Force .mjs files to load as CJS (JSC has no js_create_module)
+if (Bare.platform === 'ios' || Bare.platform === 'darwin') {
+  module.constructor._extensions['.mjs'] = module.constructor._extensions['.js']
+}
+
 // Internal dependencies
 const logger = require('./utils/logger')
 const { handlers, withErrorHandling } = require('./rpc-handlers')
 
-// Handle unhandled promise rejections and exceptions
+// Catch termination signal from BareKit (when Swift calls worklet.terminate())
+// Without this, Bare's default handler calls C abort(), killing the host app.
+// This must be at the Bare level — the process.on() polyfill below doesn't
+// intercept native Bare termination signals.
+Bare.on('uncaughtException', (err) => {
+  logger.error('Caught exception in worklet:', err)
+})
+
+// Graceful cleanup on exit
+Bare.on('exit', () => {
+  if (wdk) {
+    try { wdk.dispose() } catch (e) {}
+    wdk = null
+  }
+})
+
+// Fallback: handle exceptions/rejections via Node.js polyfill (bare-node-runtime)
 if (typeof process !== 'undefined' && process.on) {
   process.on('unhandledRejection', (error) => {
     logger.error('Unhandled promise rejection in worklet:', error)

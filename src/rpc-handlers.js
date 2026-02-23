@@ -1,3 +1,6 @@
+// Polyfills for JSC (TextEncoder, process, etc.) - must be first
+require('bare-node-runtime/global')
+
 // External dependencies
 const { entropyToMnemonic, mnemonicToSeedSync, mnemonicToEntropy } = require('@scure/bip39')
 const { wordlist } = require('@scure/bip39/wordlists/english')
@@ -5,12 +8,6 @@ const { wordlist } = require('@scure/bip39/wordlists/english')
 // WDK dependencies - Direct imports (no HRPC/code generation)
 const WDKModule = require('@tetherto/wdk')
 const WDK = WDKModule.default || WDKModule // Handle ES module default export
-const EVMWalletModule = require('@tetherto/wdk-wallet-evm')
-const EVMWallet = EVMWalletModule.default || EVMWalletModule
-const EVMERC4337WalletModule = require('@tetherto/wdk-wallet-evm-erc-4337')
-const EVMERC4337Wallet = EVMERC4337WalletModule.default || EVMERC4337WalletModule
-const SolanaWalletModule = require('@tetherto/wdk-wallet-solana')
-const SolanaWallet = SolanaWalletModule.default || SolanaWalletModule
 
 // Internal dependencies - utilities
 const logger = require('./utils/logger')
@@ -23,17 +20,34 @@ const ERROR_CODES = require('./exceptions/error-codes')
 const rpcException = require('./exceptions/rpc-exception')
 
 /**
- * Wallet managers - statically defined (no code generation)
- * Maps network names to their wallet manager implementations
+ * Wallet managers - lazy loaded to avoid loading 2000+ modules at startup.
+ * Heavy wallet SDKs (ethers, viem, solana) are only required when
+ * initializeWDK is called, not when the worklet starts.
  */
-const walletManagers = {
-  ethereum: EVMWallet,
-  polygon: EVMWallet,
-  arbitrum: EVMWallet,
-  sepolia: EVMWallet,
-  'ethereum-erc4337': EVMERC4337Wallet,
-  solana: SolanaWallet
+const _walletModuleCache = {}
+
+function getWalletManager (network) {
+  if (_walletModuleCache[network]) return _walletModuleCache[network]
+
+  let mod
+  if (network === 'ethereum' || network === 'polygon' || network === 'arbitrum' || network === 'sepolia') {
+    mod = require('@tetherto/wdk-wallet-evm')
+  } else if (network === 'ethereum-erc4337') {
+    mod = require('@tetherto/wdk-wallet-evm-erc-4337')
+  } else if (network === 'solana') {
+    mod = require('@tetherto/wdk-wallet-solana')
+  } else {
+    return null
+  }
+
+  _walletModuleCache[network] = mod.default || mod
+  return _walletModuleCache[network]
 }
+
+const walletManagers = new Proxy({}, {
+  get: (_, network) => getWalletManager(network),
+  has: (_, network) => ['ethereum', 'polygon', 'arbitrum', 'sepolia', 'ethereum-erc4337', 'solana'].includes(network)
+})
 
 /**
  * Protocol managers - for future protocol support

@@ -1,16 +1,16 @@
 #!/bin/bash
 # =============================================================================
-# build-release.sh
+# build-release-macos.sh
 #
-# Builds all release artifacts for wdk-swift-core distribution:
-#   - prebuilds.zip (BareKit.xcframework + wdk-worklet.mobile.bundle)
+# Builds all release artifacts for wdk-swift-core macOS distribution:
+#   - prebuilds.zip (BareKit.xcframework + wdk-worklet.macos.bundle)
 #   - addons.zip    (17 native addon xcframeworks)
 #
 # Usage:
-#   ./scripts/build-release.sh [--barekit <path>]
+#   ./scripts/build-release-macos.sh [--barekit <path>]
 #
 # Example:
-#   ./scripts/build-release.sh --barekit ../wdk-starter-swift/frameworks/BareKit.xcframework
+#   ./scripts/build-release-macos.sh --barekit ../wdk-starter-swift/frameworks/BareKit.xcframework
 #
 # Prerequisites:
 #   - Node.js and npm installed
@@ -72,7 +72,7 @@ ADDONS=(
 )
 
 RELEASE_DIR="release"
-ADDONS_OUT_DIR="ios-addons"
+ADDONS_OUT_DIR="mac-addons"
 
 # ---------------------------------------------------------------------------
 # Clean previous release artifacts
@@ -80,7 +80,7 @@ ADDONS_OUT_DIR="ios-addons"
 
 echo ""
 echo "============================================"
-echo "  WDK Swift Release Builder"
+echo "  WDK macOS Release Builder"
 echo "============================================"
 echo ""
 
@@ -92,9 +92,9 @@ mkdir -p "$RELEASE_DIR"
 # ---------------------------------------------------------------------------
 
 echo "[1/4] Building addon xcframeworks..."
-echo "      Running: npm run build:addons"
+echo "      Running: npm run build:addons:macos"
 echo ""
-npm run build:addons
+npm run build:addons:macos
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -102,13 +102,14 @@ echo ""
 # ---------------------------------------------------------------------------
 
 echo "[2/4] Building worklet bundle..."
-echo "      Running: npm run build:bundle"
+echo "      Running: npm run build:bundle:macos"
 echo ""
-npm run build:bundle
+npm run build:bundle:macos
 echo ""
+echo "      ESM→CJS conversion applied (chained in build:bundle:macos)"
 
 # Verify bundle was created
-BUNDLE_PATH="generated/wdk-worklet.mobile.bundle"
+BUNDLE_PATH="generated/wdk-worklet.macos.bundle"
 if [ ! -f "$BUNDLE_PATH" ]; then
   echo "Error: Bundle not found at $BUNDLE_PATH"
   echo "       Make sure bare-pack completed successfully."
@@ -187,8 +188,8 @@ PREBUILDS_DIR="${RELEASE_DIR}/prebuilds-staging"
 mkdir -p "$PREBUILDS_DIR"
 
 # Copy bundle
-cp "$BUNDLE_PATH" "$PREBUILDS_DIR/wdk-worklet.mobile.bundle"
-echo "      Added: wdk-worklet.mobile.bundle"
+cp "$BUNDLE_PATH" "$PREBUILDS_DIR/wdk-worklet.macos.bundle"
+echo "      Added: wdk-worklet.macos.bundle"
 
 # Copy BareKit.xcframework if provided
 if [ -n "$BAREKIT_PATH" ]; then
@@ -219,7 +220,7 @@ echo "  Build complete!"
 echo "============================================"
 echo ""
 echo "Artifacts:"
-echo "  ${RELEASE_DIR}/prebuilds.zip   (BareKit.xcframework + wdk-worklet.mobile.bundle)"
+echo "  ${RELEASE_DIR}/prebuilds.zip   (BareKit.xcframework + wdk-worklet.macos.bundle)"
 echo "  ${RELEASE_DIR}/addons.zip      (17 addon xcframeworks + addons.yml)"
 echo ""
 echo "Next steps:"
@@ -236,7 +237,7 @@ echo "       --notes \"Release notes here\""
 echo ""
 echo "  2. Consumer downloads prebuilds.zip + addons.zip from the release"
 echo "     - Unzip prebuilds.zip: place BareKit.xcframework in frameworks/"
-echo "       and wdk-worklet.mobile.bundle in project root"
+echo "       and wdk-worklet.macos.bundle in project root"
 echo "     - Unzip addons.zip into addons/ directory"
 echo "     - Run: xcodegen generate"
 echo ""
