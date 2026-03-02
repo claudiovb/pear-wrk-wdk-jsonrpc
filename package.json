@@ -4,8 +4,8 @@
   "description": "Simplified JSON-RPC worklet for WDK (Web3 Development Kit)",
   "main": "src/wdk-worklet.js",
   "scripts": {
-    "build:bundle": "bare-pack --host ios-arm64 --host ios-arm64-simulator --host ios-x64-simulator --linked --imports ./pack.imports.json --out generated/wdk-worklet.mobile.bundle src/wdk-worklet.js && node scripts/convert-bundle-esm-to-cjs.js generated/wdk-worklet.mobile.bundle --in-place",
-    "build:bundle:macos": "bare-pack --host darwin-arm64 --host darwin-x64 --linked --imports ./pack.imports.json --out generated/wdk-worklet.macos.bundle src/wdk-worklet.js && node scripts/convert-bundle-esm-to-cjs.js generated/wdk-worklet.macos.bundle --in-place",
+    "build:bundle": "bare-pack --host ios-arm64 --host ios-arm64-simulator --host ios-x64-simulator --linked --imports ./pack.imports.json --out generated/wdk-worklet.mobile.bundle src/wdk-worklet.js && node scripts/convert-bundle-esm-to-cjs.js generated/wdk-worklet.mobile.bundle --in-place --minify",
+    "build:bundle:macos": "bare-pack --host darwin-arm64 --host darwin-x64 --linked --imports ./pack.imports.json --out generated/wdk-worklet.macos.bundle src/wdk-worklet.js && node scripts/convert-bundle-esm-to-cjs.js generated/wdk-worklet.macos.bundle --in-place --minify",
     "build:addons": "node scripts/link-bare-addons.js --platform=ios",
     "build:addons:macos": "node scripts/link-bare-addons.js --platform=macos",
     "build:all": "npm run build:addons && npm run build:bundle",

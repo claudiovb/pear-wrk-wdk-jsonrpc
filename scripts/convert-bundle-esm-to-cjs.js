@@ -69,6 +69,8 @@ for (const [filePath, info] of sortedEntries) {
         format: 'cjs',
         target: 'es2020',
         minify,
+        legalComments: minify ? 'none' : 'eof',
+
       });
       newContent = Buffer.from(result.code);
       converted++;
