@@ -87,6 +87,12 @@ for (const [filePath, info] of sortedEntries) {
         pkgPatched++;
       }
     } catch (e) { /* skip */ }
+  } else if (filePath.endsWith('.json')) {
+    if (minify) {
+      try {
+        newContent = Buffer.from(JSON.stringify(JSON.parse(originalContent.toString())));
+      } catch (e) { /* skip */ }
+    }
   }
 
   newBuffers.push(newContent);
