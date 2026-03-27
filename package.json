@@ -21,11 +21,13 @@
   "dependencies": {
     "@scure/bip39": "^1.6.0",
     "@tetherto/wdk": "1.0.0-beta.5",
+    "@tetherto/wdk-wallet-btc": "^1.0.0-beta.7",
     "@tetherto/wdk-wallet-evm": "^1.0.0-beta.4",
     "@tetherto/wdk-wallet-evm-erc-4337": "^1.0.0-beta.3",
     "@tetherto/wdk-wallet-solana": "^1.0.0-beta.3",
     "bare-pack": "^2.0.0",
     "bufferutil": "^4.1.0",
+    "ledger-bitcoin": "file:stubs/ledger-bitcoin",
     "crypto": "npm:bare-node-crypto",
     "debug": "^4.4.3",
     "path": "npm:bare-node-path@^1.0.1",

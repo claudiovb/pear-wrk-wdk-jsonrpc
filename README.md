@@ -1,15 +1,17 @@
 # pear-wrk-wdk-jsonrpc
 
-Simplified JSON-RPC worklet for WDK (Web3 Development Kit). This worklet provides a pure JSON-RPC 2.0 interface to WDK functionality without HRPC, code generation, or schema complexity.
+JSON-RPC worklet for WDK (Web3 Development Kit). Provides a JSON-RPC 2.0 interface to WDK functionality, designed to run inside the Bare runtime as an isolated worklet for mobile apps.
+
+This project shares its handler logic, utilities, and config format with the HRPC version ([pear-wrk-wdk](https://github.com/tetherto/pear-wrk-wdk)), enabling an eventual codebase merge. The only difference is the transport layer: JSON-RPC with length-prefixed framing (here) vs. binary HRPC.
 
 ## Features
 
-- **Pure JSON-RPC 2.0**: Simple, standard JSON-RPC protocol
-- **No Code Generation**: Direct imports of WDK modules
-- **Multi-Chain Support**: Ethereum, Polygon, Arbitrum, Sepolia, Solana
-- **ERC-4337 Support**: Account abstraction for EVM chains
-- **Mnemonic Management**: Secure BIP39 mnemonic generation and handling
-- **Encryption**: AES-256-GCM encryption for sensitive data
+- **JSON-RPC 2.0** with length-prefixed framing over BareKit IPC
+- **HRPC-compatible config format** -- same config works on both JSON-RPC and HRPC transports
+- **Multi-chain support** -- Ethereum (all EVM), Bitcoin, Solana, ERC-4337
+- **Lazy wallet loading** -- wallet SDKs are only loaded when `initializeWDK` is called
+- **Context-based handlers** -- portable handler modules identical to HRPC
+- **Secure key management** -- AES-256-GCM encryption, memory zeroing
 
 ## Installation
 
@@ -19,82 +21,107 @@ npm install
 
 ## Build Commands
 
-> **Note:** When building the iOS demo app in Xcode, the worklet is **automatically built** via pre-actions. These manual commands are only needed for testing the JavaScript code outside of Xcode or for standalone development.
+> **Note:** When building the iOS demo app in Xcode, the worklet is **automatically built** via pre-actions. These manual commands are only needed for testing outside of Xcode or for standalone development.
 
-### Build Worklet Bundle
-
-Generate the iOS worklet bundle:
+### iOS
 
 ```bash
-npm run build:bundle
+npm run build:all          # Build addons + bundle
+npm run build:addons       # Native addons only (ios-addons/)
+npm run build:bundle       # Worklet bundle only (generated/wdk-worklet.mobile.bundle)
 ```
 
-This creates `generated/wdk-worklet.mobile.bundle` that can be loaded in iOS apps.
-
-### Build Bare Addons
-
-Generate iOS addons for native modules:
+### macOS
 
 ```bash
-npm run build:addons
+npm run build:all:macos
 ```
 
-This creates `ios-addons/` directory with compiled native addons.
-
-### Build Everything
-
-Build both addons and bundle:
+### Android
 
 ```bash
-npm run build:all
+npm run build:all:android
 ```
 
-### Clean Build Artifacts
-
-Remove generated files:
+### Clean
 
 ```bash
 npm run clean
 ```
 
-## Supported Networks
+## Supported Blockchains
 
-The worklet includes support for the following networks:
+The `blockchain` field in the config determines which wallet manager is used:
 
-- `ethereum` - Ethereum mainnet (EVM)
-- `polygon` - Polygon network (EVM)
-- `arbitrum` - Arbitrum One (EVM)
-- `sepolia` - Ethereum Sepolia testnet (EVM)
-- `ethereum-erc4337` - Ethereum with ERC-4337 account abstraction
-- `solana` - Solana network
+| Blockchain | Package | Description |
+|---|---|---|
+| `ethereum` | `@tetherto/wdk-wallet-evm` | All EVM-compatible networks (mainnet, sepolia, polygon, arbitrum, etc.) |
+| `ethereum-erc4337` | `@tetherto/wdk-wallet-evm-erc-4337` | EVM with account abstraction |
+| `bitcoin` | `@tetherto/wdk-wallet-btc` | Bitcoin (mainnet, testnet) |
+| `solana` | `@tetherto/wdk-wallet-solana` | Solana |
+
+Any EVM network (mainnet, sepolia, polygon, arbitrum, custom chains) uses `blockchain: "ethereum"` with different config. You are not limited to predefined network names.
+
+## Config Format
+
+The config uses the HRPC-compatible nested format. Each network entry has an arbitrary label, a `blockchain` field (determines the wallet manager), and a `config` object (passed to the wallet manager):
+
+```json
+{
+  "networks": {
+    "eth_mainnet": {
+      "blockchain": "ethereum",
+      "config": {
+        "chainId": 1,
+        "provider": "https://rpc.mevblocker.io/fast",
+        "transferMaxFee": 100000
+      }
+    },
+    "sepolia": {
+      "blockchain": "ethereum",
+      "config": {
+        "chainId": 11155111,
+        "provider": "https://ethereum-sepolia-rpc.publicnode.com"
+      }
+    },
+    "btc_testnet": {
+      "blockchain": "bitcoin",
+      "config": {
+        "network": "testnet",
+        "blockbookEndpoint": "https://blockbook.tbtc-1.zelcore.io"
+      }
+    }
+  }
+}
+```
 
 ## JSON-RPC Methods
 
+All methods follow the JSON-RPC 2.0 protocol. Requests use length-prefixed framing over BareKit IPC.
+
 ### `workletStart`
 
-Start the worklet and confirm it's ready.
+Confirm the worklet is ready.
 
 **Parameters:** None
 
 **Returns:**
 
 ```json
-{
-  "status": "started"
-}
+{ "status": "started" }
 ```
 
 ### `generateEntropyAndEncrypt`
 
-Generate a new mnemonic seed with entropy and return encrypted versions.
+Generate a new BIP39 mnemonic seed with entropy and return encrypted versions.
 
 **Parameters:**
 
 ```json
-{
-  "wordCount": 12 // or 24
-}
+{ "wordCount": 12 }
 ```
+
+`wordCount` must be `12` or `24`.
 
 **Returns:**
 
@@ -122,9 +149,7 @@ Retrieve mnemonic phrase from encrypted entropy.
 **Returns:**
 
 ```json
-{
-  "mnemonic": "12 or 24 word phrase"
-}
+{ "mnemonic": "word1 word2 ... word12" }
 ```
 
 ### `getSeedAndEntropyFromMnemonic`
@@ -134,9 +159,7 @@ Convert a mnemonic phrase to encrypted seed and entropy.
 **Parameters:**
 
 ```json
-{
-  "mnemonic": "12 or 24 word phrase"
-}
+{ "mnemonic": "word1 word2 ... word12" }
 ```
 
 **Returns:**
@@ -159,40 +182,21 @@ Initialize WDK with encrypted seed and network configurations.
 {
   "encryptionKey": "base64-encoded-key",
   "encryptedSeed": "base64-encoded-encrypted-seed",
-  "config": "{\"networks\": {\"ethereum\": {...}}}"
+  "config": "<JSON string of config>"
 }
 ```
 
-**Network Config Example:**
-
-```json
-{
-  "networks": {
-    "ethereum": {
-      "chainId": 1,
-      "blockchain": "ethereum",
-      "provider": "https://rpc.mevblocker.io/fast",
-      "transferMaxFee": 100000
-    },
-    "solana": {
-      "cluster": "mainnet-beta",
-      "rpcUrl": "https://api.mainnet-beta.solana.com"
-    }
-  }
-}
-```
+The `config` field is a JSON string containing the network/protocol config (see [Config Format](#config-format) above).
 
 **Returns:**
 
 ```json
-{
-  "status": "initialized"
-}
+{ "status": "initialized" }
 ```
 
 ### `callMethod`
 
-Call any method on a WDK account.
+Call any method on a WDK account. This is the generic handler for all account operations.
 
 **Parameters:**
 
@@ -201,25 +205,24 @@ Call any method on a WDK account.
   "methodName": "getAddress",
   "network": "ethereum",
   "accountIndex": 0,
-  "args": "{...}", // Optional JSON string
-  "options": "{...}" // Optional JSON string
+  "args": "<optional JSON string>",
+  "options": "<optional JSON string>"
 }
 ```
 
-**Common Methods:**
-
-- `getAddress()` - Get account address
-- `getBalance()` - Get account balance
-- `signTransaction(tx)` - Sign a transaction
-- `sendTransaction(tx)` - Send a transaction
+- `methodName` -- the account method to call (e.g., `getAddress`, `getBalance`, `sign`, `verify`)
+- `network` -- the network name as registered during `initializeWDK`
+- `accountIndex` -- account index (0-based)
+- `args` -- optional JSON string. Parsed and spread as positional arguments. Arrays spread as multiple args, objects/primitives passed as single arg, null/omitted means no args.
+- `options` -- optional JSON string with `protocolType`, `protocolName`, `defaultValue`, `transformResult`
 
 **Returns:**
 
 ```json
-{
-  "result": "JSON-stringified result"
-}
+{ "result": "<JSON string of the method result>" }
 ```
+
+The `result` field is always a JSON string (via `safeStringify`). The caller must `JSON.parse(result)` to get the actual value. BigInt values are converted to strings during serialization.
 
 ### `registerWallet`
 
@@ -229,7 +232,18 @@ Dynamically register additional wallets after initialization.
 
 ```json
 {
-  "config": "{\"networks\": {\"polygon\": {...}}}"
+  "config": "<JSON string of network configs>"
+}
+```
+
+The config JSON parses to a flat object of network configs (same format as `networks` in `initializeWDK`, but without the outer `networks` wrapper):
+
+```json
+{
+  "polygon_mainnet": {
+    "blockchain": "ethereum",
+    "config": { "chainId": 137, "provider": "https://polygon-rpc.com" }
+  }
 }
 ```
 
@@ -238,7 +252,7 @@ Dynamically register additional wallets after initialization.
 ```json
 {
   "status": "registered",
-  "blockchains": "[\"polygon\"]"
+  "blockchains": "[\"ethereum\"]"
 }
 ```
 
@@ -250,16 +264,14 @@ Register protocol support (swap, bridge, lending, fiat).
 
 ```json
 {
-  "config": "{\"protocols\": {\"USDT0\": {...}}}"
+  "config": "<JSON string of protocol configs>"
 }
 ```
 
 **Returns:**
 
 ```json
-{
-  "status": "registered"
-}
+{ "status": "registered" }
 ```
 
 ### `dispose`
@@ -271,14 +283,12 @@ Dispose the WDK instance and clean up resources.
 **Returns:**
 
 ```json
-{
-  "status": "disposed"
-}
+{ "status": "disposed" }
 ```
 
 ## Error Handling
 
-All methods return structured errors with error codes:
+All methods return structured errors:
 
 ```json
 {
@@ -293,59 +303,114 @@ All methods return structured errors with error codes:
 
 **Error Codes:**
 
-- `UNKNOWN` - Unknown error
-- `BAD_REQUEST` - Invalid request parameters
-- `WDK_MANAGER_INIT` - WDK initialization error
-- `ACCOUNT_BALANCES` - Account operation error
-
-## Security
-
-- All sensitive data (seeds, mnemonics, private keys) are encrypted with AES-256-GCM
-- Encryption keys are randomly generated using cryptographically secure methods
-- Memory is zeroed out after use (where possible in JavaScript)
-- Never log or expose sensitive data in production
+| Code | Description |
+|---|---|
+| `BAD_REQUEST` | Invalid request parameters |
+| `WDK_MANAGER_INIT` | WDK or wallet manager initialization error |
+| `ACCOUNT_BALANCES` | Account operation error |
+| `INTERNAL_ERROR` | Unhandled internal error |
+| `UNKNOWN` | Unknown error |
 
 ## Architecture
 
 ```
 pear-wrk-wdk-jsonrpc/
 ├── src/
-│   ├── wdk-worklet.js       # Main entry point
-│   ├── rpc-handlers.js      # JSON-RPC handlers
-│   ├── utils/               # Utility functions
+│   ├── wdk-worklet.js          # Entry point (BareKit IPC, WDK + wallet imports, context)
+│   ├── rpc-handlers.js         # registerJsonRpcHandlers + framing + dispatch
+│   ├── handlers/               # Handler modules (context-based, identical to HRPC)
+│   │   ├── index.js            # Re-exports all handlers
+│   │   ├── secrets.js          # Entropy, mnemonic, seed handlers
+│   │   ├── lifecycle.js        # initializeWDK, dispose
+│   │   ├── execution.js        # callMethod + callWdkMethod
+│   │   └── config.js           # registerWallet, registerProtocol
+│   ├── utils/                  # Shared utilities (identical to HRPC)
 │   │   ├── logger.js
-│   │   ├── validation.js
-│   │   ├── crypto.js
-│   │   └── safe-stringify.js
-│   └── exceptions/          # Error handling
+│   │   ├── validation.js       # Validators + createErrorWithCode + validateRequest
+│   │   ├── crypto.js           # AES-256-GCM, entropy generation, memory zeroing
+│   │   └── safe-stringify.js   # BigInt-safe JSON serialization
+│   └── exceptions/             # Error handling (identical to HRPC)
 │       ├── error-codes.js
 │       └── rpc-exception.js
+├── test/
+│   ├── test-handlers.js        # Handler tests (requires Bare runtime)
+│   ├── test-imports-only.js    # Module import verification
+│   └── test-framing.js         # Length-prefixed framing tests
+├── stubs/
+│   └── ledger-bitcoin/         # Stub for optional peer dep
 ├── package.json
 └── pack.imports.json
 ```
 
+### Context-Based Design
+
+All handlers receive a `context` object:
+
+```javascript
+{
+  WDK,              // WDK class
+  walletManagers,   // Map of blockchain name -> wallet manager class
+  protocolManagers,  // Map of protocol name -> protocol manager class
+  wdk,              // Current WDK instance (mutable, initially null)
+  wdkLoadError      // Error if WDK failed to load (null otherwise)
+}
+```
+
+The entry point (`wdk-worklet.js`) creates this context and passes it to `registerJsonRpcHandlers`. Handlers never import WDK or wallet packages directly -- they use `context.walletManagers[blockchain]` and `new context.WDK(seed)`.
+
+### Transition to Library Package (Option A)
+
+This codebase is structured as a stepping stone toward a full library split (like `pear-wrk-wdk`). To convert:
+
+1. Delete `src/wdk-worklet.js` (entry point moves to consumer/bundler)
+2. Remove WDK + wallet package dependencies from `package.json`
+3. Add `worklet.js` export file
+4. Consumer or bundler generates the entry point with their wallet config
+
+No handler or utility code changes are needed -- they are already context-based and transport-agnostic.
+
+## Security
+
+- All sensitive data (seeds, mnemonics, private keys) encrypted with AES-256-GCM
+- Encryption keys randomly generated using `bare-crypto` (CSPRNG)
+- Sensitive buffers zeroed after use (`memzero`)
+- Stack traces only included in error responses when `NODE_ENV=development`
+
 ## Development
+
+### Running Tests
+
+```bash
+npm test                # Run all tests (requires Bare runtime)
+npm run test:import     # Import verification only
+npm run test:handlers   # Handler tests
+```
 
 ### Log Levels
 
-Control logging via environment variables:
-
 ```bash
-LOG_LEVEL=DEBUG npm run build:bundle
+LOG_LEVEL=DEBUG bare src/wdk-worklet.js
 ```
 
 Available levels: `DEBUG`, `INFO`, `WARN`, `ERROR`, `NONE`
 
-### Adding New Networks
+### Adding a New Blockchain
 
-To add support for a new network, update the `walletManagers` object in `src/rpc-handlers.js`:
+Add a new `require` branch in `getWalletManager()` in `src/wdk-worklet.js`:
 
 ```javascript
-const walletManagers = {
-  // ... existing networks ...
-  "my-network": EVMWallet, // or appropriate wallet manager
-};
+} else if (network === 'my-chain') {
+  mod = require('@tetherto/wdk-wallet-my-chain')
+}
 ```
+
+And add it to the `has` trap:
+
+```javascript
+has: (_, network) => ['ethereum', 'ethereum-erc4337', 'solana', 'bitcoin', 'my-chain'].includes(network)
+```
+
+No changes needed in handlers -- they use `context.walletManagers` dynamically.
 
 ## License
 

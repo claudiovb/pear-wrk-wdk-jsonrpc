@@ -1,0 +1,6 @@
+{
+  "name": "ledger-bitcoin",
+  "version": "0.2.3",
+  "description": "Stub for ledger-bitcoin — optional peer dep of @bitcoinerlab/descriptors, not used at runtime",
+  "main": "index.js"
+}

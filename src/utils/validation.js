@@ -1,3 +1,5 @@
+const ERROR_CODES = require('../exceptions/error-codes')
+
 /**
  * Validate that a value is a non-empty string
  * @param {any} value - Value to validate
@@ -104,6 +106,42 @@ function validateWordCount (value, fieldName) {
   }
 }
 
+/**
+ * Create an error with a specific error code
+ * @param {string} message - Error message
+ * @param {string} code - Error code
+ * @returns {Error} Error object with code property
+ */
+const createErrorWithCode = (message, code) => {
+  const error = new Error(message)
+  error.code = code
+  return error
+}
+
+/**
+ * Unified validation utility that validates request object and wraps validation errors with error code
+ * @param {any} request - Request to validate
+ * @param {Function} validationFn - Validation function to execute
+ * @param {string} fieldName - Name of the field for error messages (default: 'Request')
+ * @throws {Error} With BAD_REQUEST code if validation fails
+ */
+const validateRequest = (request, validationFn, fieldName = 'Request') => {
+  if (!request || typeof request !== 'object') {
+    const error = new Error(`${fieldName} must be an object`)
+    error.code = ERROR_CODES.BAD_REQUEST
+    throw error
+  }
+
+  try {
+    validationFn()
+  } catch (error) {
+    if (!error.code) {
+      error.code = ERROR_CODES.BAD_REQUEST
+    }
+    throw error
+  }
+}
+
 module.exports = {
   validateNonEmptyString,
   validateNonNegativeInteger,
@@ -111,5 +149,7 @@ module.exports = {
   validateBase64,
   validateJSON,
   validateMnemonic,
-  validateWordCount
+  validateWordCount,
+  createErrorWithCode,
+  validateRequest
 }
