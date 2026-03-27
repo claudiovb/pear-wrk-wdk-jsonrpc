@@ -1,6 +1,6 @@
 # pear-wrk-wdk-jsonrpc
 
-JSON-RPC worklet for WDK (Web3 Development Kit). Provides a JSON-RPC 2.0 interface to WDK functionality, designed to run inside the Bare runtime as an isolated worklet for mobile apps.
+JSON-RPC worklet for WDK (Wallet Development Kit). Provides a JSON-RPC 2.0 interface to WDK functionality, designed to run inside the Bare runtime as an isolated worklet for mobile apps.
 
 This project shares its handler logic, utilities, and config format with the HRPC version ([pear-wrk-wdk](https://github.com/tetherto/pear-wrk-wdk)), enabling an eventual codebase merge. The only difference is the transport layer: JSON-RPC with length-prefixed framing (here) vs. binary HRPC.
 
@@ -53,12 +53,12 @@ npm run clean
 
 The `blockchain` field in the config determines which wallet manager is used:
 
-| Blockchain | Package | Description |
-|---|---|---|
-| `ethereum` | `@tetherto/wdk-wallet-evm` | All EVM-compatible networks (mainnet, sepolia, polygon, arbitrum, etc.) |
-| `ethereum-erc4337` | `@tetherto/wdk-wallet-evm-erc-4337` | EVM with account abstraction |
-| `bitcoin` | `@tetherto/wdk-wallet-btc` | Bitcoin (mainnet, testnet) |
-| `solana` | `@tetherto/wdk-wallet-solana` | Solana |
+| Blockchain         | Package                             | Description                                                             |
+| ------------------ | ----------------------------------- | ----------------------------------------------------------------------- |
+| `ethereum`         | `@tetherto/wdk-wallet-evm`          | All EVM-compatible networks (mainnet, sepolia, polygon, arbitrum, etc.) |
+| `ethereum-erc4337` | `@tetherto/wdk-wallet-evm-erc-4337` | EVM with account abstraction                                            |
+| `bitcoin`          | `@tetherto/wdk-wallet-btc`          | Bitcoin (mainnet, testnet)                                              |
+| `solana`           | `@tetherto/wdk-wallet-solana`       | Solana                                                                  |
 
 Any EVM network (mainnet, sepolia, polygon, arbitrum, custom chains) uses `blockchain: "ethereum"` with different config. You are not limited to predefined network names.
 
@@ -303,13 +303,13 @@ All methods return structured errors:
 
 **Error Codes:**
 
-| Code | Description |
-|---|---|
-| `BAD_REQUEST` | Invalid request parameters |
+| Code               | Description                                |
+| ------------------ | ------------------------------------------ |
+| `BAD_REQUEST`      | Invalid request parameters                 |
 | `WDK_MANAGER_INIT` | WDK or wallet manager initialization error |
-| `ACCOUNT_BALANCES` | Account operation error |
-| `INTERNAL_ERROR` | Unhandled internal error |
-| `UNKNOWN` | Unknown error |
+| `ACCOUNT_BALANCES` | Account operation error                    |
+| `INTERNAL_ERROR`   | Unhandled internal error                   |
+| `UNKNOWN`          | Unknown error                              |
 
 ## Architecture
 
@@ -348,11 +348,11 @@ All handlers receive a `context` object:
 
 ```javascript
 {
-  WDK,              // WDK class
-  walletManagers,   // Map of blockchain name -> wallet manager class
-  protocolManagers,  // Map of protocol name -> protocol manager class
-  wdk,              // Current WDK instance (mutable, initially null)
-  wdkLoadError      // Error if WDK failed to load (null otherwise)
+  (WDK, // WDK class
+    walletManagers, // Map of blockchain name -> wallet manager class
+    protocolManagers, // Map of protocol name -> protocol manager class
+    wdk, // Current WDK instance (mutable, initially null)
+    wdkLoadError); // Error if WDK failed to load (null otherwise)
 }
 ```
 
@@ -407,7 +407,10 @@ Add a new `require` branch in `getWalletManager()` in `src/wdk-worklet.js`:
 And add it to the `has` trap:
 
 ```javascript
-has: (_, network) => ['ethereum', 'ethereum-erc4337', 'solana', 'bitcoin', 'my-chain'].includes(network)
+has: (_, network) =>
+  ["ethereum", "ethereum-erc4337", "solana", "bitcoin", "my-chain"].includes(
+    network,
+  );
 ```
 
 No changes needed in handlers -- they use `context.walletManagers` dynamically.
