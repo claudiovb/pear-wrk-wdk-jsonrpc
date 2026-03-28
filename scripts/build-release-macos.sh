@@ -3,8 +3,8 @@
 # build-release-macos.sh
 #
 # Builds all release artifacts for wdk-swift-core macOS distribution:
-#   - prebuilds.zip (BareKit.xcframework + wdk-worklet.macos.bundle)
-#   - addons.zip    (17 native addon xcframeworks)
+#   - macos-prebuilds.zip (BareKit.xcframework + wdk-worklet.macos.bundle)
+#   - macos-addons.zip    (17 native addon xcframeworks)
 #
 # Usage:
 #   ./scripts/build-release-macos.sh [--barekit <path>]
@@ -172,10 +172,10 @@ for addon in "${ADDONS[@]}"; do
 done
 
 # Create the zip
-(cd "$ADDONS_STAGING" && zip -r -q "../addons.zip" .)
+(cd "$ADDONS_STAGING" && zip -r -q "../macos-addons.zip" .)
 rm -rf "$ADDONS_STAGING"
 
-echo "      Created: ${RELEASE_DIR}/addons.zip (17 xcframeworks + addons.yml)"
+echo "      Created: ${RELEASE_DIR}/macos-addons.zip (17 xcframeworks + addons.yml)"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -205,10 +205,10 @@ else
 fi
 
 # Create the zip
-(cd "$PREBUILDS_DIR" && zip -r -q "../prebuilds.zip" .)
+(cd "$PREBUILDS_DIR" && zip -r -q "../macos-prebuilds.zip" .)
 rm -rf "$PREBUILDS_DIR"
 
-echo "      Created: ${RELEASE_DIR}/prebuilds.zip"
+echo "      Created: ${RELEASE_DIR}/macos-prebuilds.zip"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -220,8 +220,8 @@ echo "  Build complete!"
 echo "============================================"
 echo ""
 echo "Artifacts:"
-echo "  ${RELEASE_DIR}/prebuilds.zip   (BareKit.xcframework + wdk-worklet.macos.bundle)"
-echo "  ${RELEASE_DIR}/addons.zip      (17 addon xcframeworks + addons.yml)"
+echo "  ${RELEASE_DIR}/macos-prebuilds.zip   (BareKit.xcframework + wdk-worklet.macos.bundle)"
+echo "  ${RELEASE_DIR}/macos-addons.zip      (17 addon xcframeworks + addons.yml)"
 echo ""
 echo "Next steps:"
 echo ""
@@ -230,12 +230,12 @@ echo ""
 echo "     git tag v<VERSION>"
 echo "     git push origin v<VERSION>"
 echo "     gh release create v<VERSION> \\"
-echo "       ${RELEASE_DIR}/prebuilds.zip \\"
-echo "       ${RELEASE_DIR}/addons.zip \\"
+echo "       ${RELEASE_DIR}/macos-prebuilds.zip \\"
+echo "       ${RELEASE_DIR}/macos-addons.zip \\"
 echo "       --title \"v<VERSION>\" \\"
 echo "       --notes \"Release notes here\""
 echo ""
-echo "  2. Consumer downloads prebuilds.zip + addons.zip from the release"
+echo "  2. Consumer downloads macos-prebuilds.zip + macos-addons.zip from the release"
 echo "     - Unzip prebuilds.zip: place BareKit.xcframework in frameworks/"
 echo "       and wdk-worklet.macos.bundle in project root"
 echo "     - Unzip addons.zip into addons/ directory"
