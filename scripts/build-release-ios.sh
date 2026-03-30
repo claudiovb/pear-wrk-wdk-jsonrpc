@@ -52,6 +52,7 @@ done
 # ---------------------------------------------------------------------------
 
 ADDONS=(
+  "bare-abort"
   "bare-buffer"
   "bare-crypto"
   "bare-dns"
@@ -175,7 +176,7 @@ done
 (cd "$ADDONS_STAGING" && zip -r -q "../addons.zip" .)
 rm -rf "$ADDONS_STAGING"
 
-echo "      Created: ${RELEASE_DIR}/addons.zip (17 xcframeworks + addons.yml)"
+echo "      Created: ${RELEASE_DIR}/addons.zip (18 xcframeworks + addons.yml)"
 echo ""
 
 # ---------------------------------------------------------------------------

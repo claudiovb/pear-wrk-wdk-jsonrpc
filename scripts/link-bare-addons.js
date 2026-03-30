@@ -16,6 +16,7 @@ if (!['ios', 'macos', 'android'].includes(platform)) {
 
 // List of bare modules that need to be linked
 const bareModules = [
+  'bare-abort',
   'bare-fs',
   'bare-inspect',
   'bare-type',
