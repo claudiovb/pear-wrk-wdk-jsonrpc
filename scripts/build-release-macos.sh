@@ -3,49 +3,21 @@
 # build-release-macos.sh
 #
 # Builds all release artifacts for wdk-swift-core macOS distribution:
-#   - prebuilds.zip (BareKit.xcframework + wdk-worklet.macos.bundle)
-#   - addons.zip    (17 native addon xcframeworks)
+#   - macos-prebuilds.zip (wdk-worklet.macos.bundle)
+#   - macos-addons.zip    (17 native addon xcframeworks)
+#
+# BareKit.framework / BareKit.xcframework should be obtained separately
+# from https://github.com/niclas-AIS/bare-kit-swift
 #
 # Usage:
-#   ./scripts/build-release-macos.sh [--barekit <path>]
-#
-# Example:
-#   ./scripts/build-release-macos.sh --barekit ../wdk-starter-swift/frameworks/BareKit.xcframework
+#   ./scripts/build-release-macos.sh
 #
 # Prerequisites:
 #   - Node.js and npm installed
 #   - npm install already run in this directory
-#   - BareKit.xcframework available at the specified path
 # =============================================================================
 
 set -euo pipefail
-
-# ---------------------------------------------------------------------------
-# Parse arguments
-# ---------------------------------------------------------------------------
-
-BAREKIT_PATH=""
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --barekit)
-      BAREKIT_PATH="$2"
-      shift 2
-      ;;
-    --help|-h)
-      echo "Usage: $0 [--barekit <path-to-BareKit.xcframework>]"
-      echo ""
-      echo "Options:"
-      echo "  --barekit <path>   Path to BareKit.xcframework (required for prebuilds.zip)"
-      echo "  --help, -h         Show this help message"
-      exit 0
-      ;;
-    *)
-      echo "Error: Unexpected argument '$1'"
-      exit 1
-      ;;
-  esac
-done
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -172,10 +144,10 @@ for addon in "${ADDONS[@]}"; do
 done
 
 # Create the zip
-(cd "$ADDONS_STAGING" && zip -r -q "../addons.zip" .)
+(cd "$ADDONS_STAGING" && zip -r -q "../macos-addons.zip" .)
 rm -rf "$ADDONS_STAGING"
 
-echo "      Created: ${RELEASE_DIR}/addons.zip (17 xcframeworks + addons.yml)"
+echo "      Created: ${RELEASE_DIR}/macos-addons.zip (17 xcframeworks + addons.yml)"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -191,24 +163,11 @@ mkdir -p "$PREBUILDS_DIR"
 cp "$BUNDLE_PATH" "$PREBUILDS_DIR/wdk-worklet.macos.bundle"
 echo "      Added: wdk-worklet.macos.bundle"
 
-# Copy BareKit.xcframework if provided
-if [ -n "$BAREKIT_PATH" ]; then
-  if [ ! -d "$BAREKIT_PATH" ]; then
-    echo "Error: BareKit.xcframework not found at $BAREKIT_PATH"
-    exit 1
-  fi
-  cp -R "$BAREKIT_PATH" "$PREBUILDS_DIR/BareKit.xcframework"
-  echo "      Added: BareKit.xcframework"
-else
-  echo "      WARNING: --barekit not provided, prebuilds.zip will only contain the bundle."
-  echo "               Pass --barekit <path> to include BareKit.xcframework."
-fi
-
 # Create the zip
-(cd "$PREBUILDS_DIR" && zip -r -q "../prebuilds.zip" .)
+(cd "$PREBUILDS_DIR" && zip -r -q "../macos-prebuilds.zip" .)
 rm -rf "$PREBUILDS_DIR"
 
-echo "      Created: ${RELEASE_DIR}/prebuilds.zip"
+echo "      Created: ${RELEASE_DIR}/macos-prebuilds.zip"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -220,8 +179,8 @@ echo "  Build complete!"
 echo "============================================"
 echo ""
 echo "Artifacts:"
-echo "  ${RELEASE_DIR}/prebuilds.zip   (BareKit.xcframework + wdk-worklet.macos.bundle)"
-echo "  ${RELEASE_DIR}/addons.zip      (17 addon xcframeworks + addons.yml)"
+echo "  ${RELEASE_DIR}/macos-prebuilds.zip   (wdk-worklet.macos.bundle)"
+echo "  ${RELEASE_DIR}/macos-addons.zip      (17 addon xcframeworks + addons.yml)"
 echo ""
 echo "Next steps:"
 echo ""
@@ -230,14 +189,14 @@ echo ""
 echo "     git tag v<VERSION>"
 echo "     git push origin v<VERSION>"
 echo "     gh release create v<VERSION> \\"
-echo "       ${RELEASE_DIR}/prebuilds.zip \\"
-echo "       ${RELEASE_DIR}/addons.zip \\"
+echo "       ${RELEASE_DIR}/macos-prebuilds.zip \\"
+echo "       ${RELEASE_DIR}/macos-addons.zip \\"
 echo "       --title \"v<VERSION>\" \\"
 echo "       --notes \"Release notes here\""
 echo ""
-echo "  2. Consumer downloads prebuilds.zip + addons.zip from the release"
-echo "     - Unzip prebuilds.zip: place BareKit.xcframework in frameworks/"
-echo "       and wdk-worklet.macos.bundle in project root"
-echo "     - Unzip addons.zip into addons/ directory"
+echo "  2. Consumer setup:"
+echo "     - Get BareKit from: https://github.com/niclas-AIS/bare-kit-swift"
+echo "     - Unzip macos-prebuilds.zip: place wdk-worklet.macos.bundle in project"
+echo "     - Unzip macos-addons.zip into addons/ directory"
 echo "     - Run: xcodegen generate"
 echo ""

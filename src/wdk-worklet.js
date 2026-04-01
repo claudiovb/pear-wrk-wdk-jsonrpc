@@ -8,8 +8,10 @@ if (Bare.platform === 'ios' || Bare.platform === 'darwin') {
   module.constructor._extensions['.mjs'] = module.constructor._extensions['.js']
 }
 
-const logger = require('./utils/logger')
-const { registerJsonRpcHandlers } = require('./rpc-handlers')
+const {
+  registerJsonRpcHandlers,
+  utils: { logger }
+} = require('@tetherto/pear-wrk-wdk/jsonrpc')
 
 // Catch termination signal from BareKit (when Swift calls worklet.terminate())
 // Without this, Bare's default handler calls C abort(), killing the host app.
