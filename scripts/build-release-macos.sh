@@ -24,6 +24,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 
 ADDONS=(
+  "bare-abort"
   "bare-buffer"
   "bare-crypto"
   "bare-dns"
