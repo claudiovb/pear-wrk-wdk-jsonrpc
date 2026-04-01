@@ -253,6 +253,8 @@ Dispose the WDK instance and clean up resources.
 }
 ```
 
+**Error Codes:**
+
 | Code               | Description                                |
 | ------------------ | ------------------------------------------ |
 | `BAD_REQUEST`      | Invalid request parameters                 |
